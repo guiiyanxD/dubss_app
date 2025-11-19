@@ -19,8 +19,8 @@ class ApiConfig {
   // ENDPOINTS DE AUTENTICACIÓN
   // ============================================
 
-  static String get registro => 'http://10.0.2.2:8000/registro';
-  static String get login => 'http://10.0.2.2:8000/login';
+  static String get registro => '$apiUrl/registro';
+  static String get login => '$apiUrl/login';
   static String get logout => '$apiUrl/logout';
   static String get perfil => '$apiUrl/perfil';
   static String get actualizarPerfil => '$apiUrl/perfil';

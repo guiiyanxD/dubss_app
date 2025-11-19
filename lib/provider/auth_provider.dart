@@ -1,145 +1,278 @@
-/*import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/usuario.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 
-class AuthProvider with ChangeNotifier {
-  final AuthService _authService = AuthService();
-  final StorageService _storage = StorageService();
+enum AuthStatus {
+  initial,
+  authenticated,
+  unauthenticated,
+  loading,
+}
 
+class AuthProvider extends ChangeNotifier {
+  // Servicios
+  final AuthService _authService = AuthService();
+  final StorageService _storageService = StorageService();
+
+  // Estado
+  AuthStatus _status = AuthStatus.initial;
   Usuario? _usuario;
   String? _token;
-  bool _isLoading = false;
   String? _errorMessage;
 
   // Getters
+  AuthStatus get status => _status;
   Usuario? get usuario => _usuario;
   String? get token => _token;
-  bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  bool get isAuthenticated => _usuario != null && _token != null;
+  bool get isAuthenticated => _status == AuthStatus.authenticated;
+  bool get isLoading => _status == AuthStatus.loading;
 
-  /// Verificar si hay sesión activa
-  Future<bool> checkAuthStatus() async {
+
+  /// Verifica si hay una sesión activa al iniciar la app
+  Future<void> checkAuthStatus() async {
     try {
-      _token = await _storage.getToken();
+      _setStatus(AuthStatus.loading);
 
-      if (_token != null) {
-        // Obtener datos del usuario
-        final userData = await _storage.getUserData();
-        if (userData != null) {
-          _usuario = Usuario.fromJson(userData);
-          notifyListeners();
-          return true;
-        }
+      final hasToken = await _storageService.hasToken();
+
+      if (!hasToken) {
+        _setStatus(AuthStatus.unauthenticated);
+        return;
       }
 
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
+      // Verificar que el token sea válido obteniendo el perfil
+      final result = await _authService.obtenerPerfil();
 
-  /// Login
-  Future<bool> login(String email, String password) async {
-    try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
-
-      final response = await _authService.login(email, password);
-
-      if (response['success'] == true) {
-        _token = response['data']['token'];
-        _usuario = Usuario.fromJson(response['data']['usuario']);
-
-        // Guardar en storage
-        await _storage.saveToken(_token!);
-        await _storage.saveUserData(response['data']['usuario']);
-
-        _isLoading = false;
-        notifyListeners();
-        return true;
+      if (result['success'] == true) {
+        _usuario = result['usuario'];
+        _token = await _storageService.getToken();
+        _setStatus(AuthStatus.authenticated);
       } else {
-        _errorMessage = response['message'] ?? 'Error en el login';
-        _isLoading = false;
-        notifyListeners();
-        return false;
+
+        // Token inválido, limpiar datos
+        await _storageService.clearAll();
+        _setStatus(AuthStatus.unauthenticated);
       }
     } catch (e) {
-      _errorMessage = 'Error de conexión. Verifica tu internet.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
+      if (kDebugMode) {
+        print('Error checking auth status: $e');
+      }
+      await _storageService.clearAll();
+      _setStatus(AuthStatus.unauthenticated);
     }
   }
 
-  /// Registro
+
   Future<bool> registro({
     required String nombre,
     required String apellido,
     required String ci,
     required String email,
-    required String password,
     required String telefono,
+    required String password,
+    required String passwordConfirmation,
   }) async {
     try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
+      _setStatus(AuthStatus.loading);
+      _clearError();
 
-      final response = await _authService.registro(
+      final result = await _authService.registro(
         nombre: nombre,
         apellido: apellido,
         ci: ci,
         email: email,
-        password: password,
         telefono: telefono,
+        password: password,
+        passwordConfirmation: passwordConfirmation,
       );
 
-      if (response['success'] == true) {
-        _token = response['data']['token'];
-        _usuario = Usuario.fromJson(response['data']['usuario']);
+      if (result['success'] == true) {
+        _usuario = result['usuario'];
+        _token = result['token'];
+        _setStatus(AuthStatus.authenticated);
+        return true;
+      } else {
+        _errorMessage = result['message'];
+        _setStatus(AuthStatus.unauthenticated);
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'Error en el registro: $e';
+      _setStatus(AuthStatus.unauthenticated);
+      return false;
+    }
+  }
 
-        await _storage.saveToken(_token!);
-        await _storage.saveUserData(response['data']['usuario']);
+  Future<bool> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      _setStatus(AuthStatus.loading);
+      _clearError();
 
-        _isLoading = false;
+      final result = await _authService.login(
+        email: email,
+        password: password,
+      );
+
+      if (kDebugMode) {
+        print(' Login result: $result');
+      }
+
+      if (result['success'] == true) {
+        // Validar que los datos existan antes de asignar
+        if (result['usuario'] != null && result['token'] != null) {
+          _usuario = result['usuario'] as Usuario;
+          _token = result['token'] as String;
+          _setStatus(AuthStatus.authenticated);
+          return true;
+        } else {
+          _errorMessage = 'Datos de usuario incompletos';
+          if (kDebugMode) {
+            print(' Missing usuario or token in response');
+          }
+          _setStatus(AuthStatus.unauthenticated);
+          return false;
+        }
+      } else {
+        _errorMessage = result['message'] ?? 'Error desconocido en el login';
+        _setStatus(AuthStatus.unauthenticated);
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'Error en el login: $e';
+      if (kDebugMode) {
+        print(' Login error: $e');
+      }
+      _setStatus(AuthStatus.unauthenticated);
+      return false;
+    }
+  }
+
+
+  Future<void> logout() async {
+    try {
+      _setStatus(AuthStatus.loading);
+
+      // Llamar a la API para invalidar el token
+      await _authService.logout();
+
+      // Limpiar estado local
+      _usuario = null;
+      _token = null;
+      _clearError();
+
+      _setStatus(AuthStatus.unauthenticated);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error during logout: $e');
+      }
+
+      // Aunque falle la API, limpiar localmente
+      _usuario = null;
+      _token = null;
+      _clearError();
+      _setStatus(AuthStatus.unauthenticated);
+    }
+  }
+
+
+  Future<bool> actualizarPerfil({
+    String? nombre,
+    String? apellido,
+    String? telefono,
+    String? passwordActual,
+    String? passwordNuevo,
+  }) async {
+    try {
+      _clearError();
+
+      final result = await _authService.actualizarPerfil(
+        nombre: nombre,
+        apellido: apellido,
+        telefono: telefono,
+        passwordActual: passwordActual,
+        passwordNuevo: passwordNuevo,
+      );
+
+      if (result['success'] == true) {
+        _usuario = result['usuario'];
         notifyListeners();
         return true;
       } else {
-        _errorMessage = response['message'] ?? 'Error en el registro';
-        _isLoading = false;
+        _errorMessage = result['message'];
         notifyListeners();
         return false;
       }
     } catch (e) {
-      _errorMessage = 'Error de conexión. Verifica tu internet.';
-      _isLoading = false;
+      _errorMessage = 'Error al actualizar perfil: $e';
       notifyListeners();
       return false;
     }
   }
 
-  /// Logout
-  Future<void> logout() async {
+
+  Future<void> recargarPerfil() async {
     try {
-      if (_token != null) {
-        await _authService.logout(_token!);
+      final result = await _authService.obtenerPerfil();
+
+      if (result['success'] == true) {
+        _usuario = result['usuario'];
+        notifyListeners();
       }
     } catch (e) {
-      // Continuar con logout local aunque falle la API
-    } finally {
-      _usuario = null;
-      _token = null;
-      await _storage.clearAll();
-      notifyListeners();
+      if (kDebugMode) {
+        print('Error reloading profile: $e');
+      }
     }
   }
 
-  /// Limpiar error
-  void clearError() {
-    _errorMessage = null;
+
+  Future<bool> recuperarPassword({required String email}) async {
+    try {
+      _clearError();
+
+      final result = await _authService.recuperarPassword(email: email);
+
+      if (result['success'] == true) {
+        return true;
+      } else {
+        _errorMessage = result['message'];
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'Error al recuperar contraseña: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+
+  String get nombreCompleto => _usuario?.nombreCompleto ?? '';
+  String get email => _usuario?.email ?? '';
+  String get rol => _usuario?.rol ?? '';
+  bool get esEstudiante => _usuario?.esEstudiante ?? false;
+  bool get esOperador => _usuario?.esOperador ?? false;
+  bool get esAdmin => _usuario?.esAdmin ?? false;
+
+
+
+  void _setStatus(AuthStatus status) {
+    _status = status;
     notifyListeners();
   }
-}*/
+
+  void _clearError() {
+    _errorMessage = null;
+  }
+
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+}

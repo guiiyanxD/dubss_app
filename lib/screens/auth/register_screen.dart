@@ -52,17 +52,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Integrar con AuthService
-      await Future.delayed(const Duration(seconds: 2)); // Simulación
+      final authService = AuthService();
+
+      final result = await authService.registro(
+        nombre: _nombreController.text.trim(),
+        apellido: _apellidoController.text.trim(),
+        ci: _ciController.text.trim(),
+        email: _emailController.text.trim(),
+        telefono: _telefonoController.text.trim(),
+        password: _passwordController.text,
+        passwordConfirmation: _confirmPasswordController.text,
+      );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registro exitoso. Por favor verifica tu email.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context);
+        if (result['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Registro exitoso'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Navegar directamente al home (ya está autenticado)
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Error en el registro'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

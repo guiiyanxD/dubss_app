@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../config/api_config.dart';
 import '../models/usuario.dart';
 import 'api_service.dart';
@@ -92,19 +94,68 @@ class AuthService {
         },
       );
 
+      if (kDebugMode) {
+        print('Login API Response: ${response.data}');
+      }
+
       final data = response.data;
 
+      if (data == null) {
+        return {
+          'success': false,
+          'message': 'Respuesta vacía del servidor',
+        };
+      }
+
       if (data['success'] == true) {
-        // Guardar token y datos del usuario
-        final token = data['data']['token'];
-        final usuarioData = data['data']['usuario'];
+        // Validar estructura de datos
+        if (data['data'] == null) {
+          return {
+            'success': false,
+            'message': 'Datos incompletos en la respuesta',
+          };
+        }
+
+        final responseData = data['data'];
+        final token = responseData['token'];
+        final usuarioData = responseData['usuario'];
+
+        if (token == null || usuarioData == null) {
+          if (kDebugMode) {
+            print(' Missing token or usuario in response data');
+            print('Token: $token');
+            print('Usuario: $usuarioData');
+          }
+          return {
+            'success': false,
+            'message': 'Token o datos de usuario no encontrados',
+          };
+        }
 
         await _storageService.saveToken(token);
+
+        final userId = usuarioData['id'];
+        final userEmail = usuarioData['email'];
+        final nombre = usuarioData['nombre'];
+        final apellido = usuarioData['apellido'];
+        final rol = usuarioData['rol'];
+
+        if (userId == null || userEmail == null || nombre == null || apellido == null || rol == null) {
+          if (kDebugMode) {
+            print('Missing required user fields');
+            print('Usuario data: $usuarioData');
+          }
+          return {
+            'success': false,
+            'message': 'Datos de usuario incompletos',
+          };
+        }
+
         await _storageService.saveUserData(
-          userId: usuarioData['id'],
-          email: usuarioData['email'],
-          name: '${usuarioData['nombre']} ${usuarioData['apellido']}',
-          role: usuarioData['rol'],
+          userId: userId,
+          email: userEmail,
+          name: '$nombre $apellido',
+          role: rol,
         );
 
         return {
@@ -120,11 +171,17 @@ class AuthService {
         'message': data['message'] ?? 'Error en el login',
       };
     } on ApiException catch (e) {
+      if (kDebugMode) {
+        print('ApiException in login: ${e.message}');
+      }
       return {
         'success': false,
         'message': e.message,
       };
     } catch (e) {
+      if (kDebugMode) {
+        print('Unexpected error in login: $e');
+      }
       return {
         'success': false,
         'message': 'Error inesperado: $e',

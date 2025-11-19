@@ -7,8 +7,8 @@ class Usuario {
   final String? telefono;
   final String rol;
   final DateTime? emailVerifiedAt;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Usuario({
     required this.id,
@@ -19,8 +19,8 @@ class Usuario {
     this.telefono,
     required this.rol,
     this.emailVerifiedAt,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   // ============================================
@@ -39,8 +39,12 @@ class Usuario {
       emailVerifiedAt: json['email_verified_at'] != null
           ? DateTime.parse(json['email_verified_at'])
           : null,
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : null,
     );
   }
 
@@ -58,8 +62,8 @@ class Usuario {
       'telefono': telefono,
       'rol': rol,
       'email_verified_at': emailVerifiedAt?.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
     };
   }
 

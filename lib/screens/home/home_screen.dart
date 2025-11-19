@@ -6,6 +6,7 @@ import '../tramites/mis_tramites_screen.dart';
 import '../turnos/turnos_disponibles_screen.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../services/storage_service.dart';
+import '../../provider/auth_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
