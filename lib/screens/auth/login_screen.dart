@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           size: 64,
                           color: Theme.of(context).primaryColor,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 0),
                         Text(
                           'DUBSS',
                           style: Theme.of(context).textTheme.headlineMedium?.copyWith(

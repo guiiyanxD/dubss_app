@@ -4,7 +4,7 @@ class ApiConfig {
   // ============================================
 
   // Cambiar según tu entorno
-  static const String _baseUrlProduction = 'https://dubss.edu.bo';
+  static const String _baseUrlProduction = 'https://qcs3wqh6-8000.brs.devtunnels.ms';
   static const String _baseUrlDevelopment = 'http://10.0.2.2:8000'; // Emulador Android
   // static const String _baseUrlDevelopment = 'http://localhost:8000'; // iOS Simulator
 
