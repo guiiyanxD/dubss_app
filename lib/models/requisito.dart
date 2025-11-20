@@ -53,4 +53,10 @@ class Requisito {
   String toString() {
     return 'Requisito(id: $id, nombre: $nombre, obligatorio: $esObligatorio)';
   }
+
+  int get tamanoMaxTexto => 500;
+
+  String get tiposArchivosTexto => "txt";
+
+
 }

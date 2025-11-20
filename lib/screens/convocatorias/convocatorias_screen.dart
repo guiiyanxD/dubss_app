@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../provider/convocatoria_provider.dart';
 import '../../models/convocatoria.dart';
+import '../../models/requisito.dart';
 import '../../utils/constants.dart';
 import '../../utils/app_helpers.dart';
 
@@ -14,11 +15,10 @@ class ConvocatoriasScreen extends StatefulWidget {
 }
 
 class _ConvocatoriasScreenState extends State<ConvocatoriasScreen> {
-
-
   @override
   void initState() {
     super.initState();
+    // Cargar convocatorias al iniciar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ConvocatoriaProvider>().cargarConvocatorias();
     });
@@ -32,7 +32,10 @@ class _ConvocatoriasScreenState extends State<ConvocatoriasScreen> {
           onRefresh: () => provider.cargarConvocatorias(),
           child: Column(
             children: [
+              // Filtros
               _buildFiltros(provider),
+
+              // Lista de convocatorias
               Expanded(
                 child: _buildContent(provider),
               ),
@@ -368,6 +371,65 @@ class _ConvocatoriasScreenState extends State<ConvocatoriasScreen> {
                 ),
               ],
 
+              // SECCIÓN DE REQUISITOS
+              if (convocatoria.requisitos.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 16),
+
+                Row(
+                  children: [
+                    Icon(
+                      Icons.checklist_rounded,
+                      color: Theme.of(context).primaryColor,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Requisitos',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+
+                // Contador de requisitos
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${convocatoria.cantidadRequisitosObligatorios} obligatorio(s) • '
+                            '${convocatoria.cantidadRequisitosOpcionales} opcional(es)',
+                        style: TextStyle(
+                          color: Colors.blue[700],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Lista de requisitos
+                ...convocatoria.requisitos.map((requisito) =>
+                    _buildRequisitoItem(requisito)
+                ),
+              ],
+
               const SizedBox(height: 32),
 
               // Botón de acción
@@ -402,6 +464,154 @@ class _ConvocatoriasScreenState extends State<ConvocatoriasScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRequisitoItem(Requisito requisito) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: requisito.esObligatorio
+              ? Colors.red.withOpacity(0.3)
+              : Colors.grey.withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header del requisito
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: requisito.esObligatorio
+                      ? Colors.red.withOpacity(0.1)
+                      : Colors.grey.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '${requisito.orden}',
+                    style: TextStyle(
+                      color: requisito.esObligatorio ? Colors.red[700] : Colors.grey[700],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  requisito.nombre,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: requisito.esObligatorio
+                      ? Colors.red.withOpacity(0.1)
+                      : Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  requisito.esObligatorio ? 'OBLIGATORIO' : 'OPCIONAL',
+                  style: TextStyle(
+                    color: requisito.esObligatorio ? Colors.red[700] : Colors.grey[700],
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          if (requisito.descripcion.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              requisito.descripcion,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+          ],
+
+          // Información técnica
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.description_outlined, size: 16, color: Colors.grey[600]),
+              const SizedBox(width: 6),
+              Text(
+                'Formatos: ${requisito.tiposArchivosTexto}',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(Icons.storage, size: 16, color: Colors.grey[600]),
+              const SizedBox(width: 6),
+              Text(
+                'Máx: ${requisito.tamanoMaxTexto}',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+
+          // Instrucciones adicionales
+          if (requisito.instrucciones != null && requisito.instrucciones!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.amber.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    size: 18,
+                    color: Colors.amber[700],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      requisito.instrucciones!,
+                      style: TextStyle(
+                        color: Colors.amber[900],
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

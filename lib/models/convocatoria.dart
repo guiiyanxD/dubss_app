@@ -152,4 +152,7 @@ class Convocatoria {
 
   @override
   int get hashCode => id.hashCode;
+
+  int get cantidadRequisitosObligatorios => 0;
+  int get cantidadRequisitosOpcionales => 0;
 }
