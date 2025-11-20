@@ -1,6 +1,8 @@
 import 'package:dubss_android_app/provider/auth_provider.dart';
 import 'package:dubss_android_app/provider/convocatoria_provider.dart';
+import 'package:dubss_android_app/provider/turno_provider.dart';
 import 'package:dubss_android_app/services/storage_service.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/theme.dart';
@@ -21,6 +23,7 @@ class DubssApp extends StatelessWidget {
         // Aquí puedes agregar más providers en el futuro
         // ChangeNotifierProvider(create: (_) => TramiteProvider()),
         ChangeNotifierProvider(create: (_) => ConvocatoriaProvider()),
+        ChangeNotifierProvider(create: (_) => TurnoProvider()),
       ],
       child: MaterialApp(
         title: 'DUBSS',
@@ -42,6 +45,7 @@ void main() async {
 
   // Inicializar StorageService
   await StorageService().init();
+  await initializeDateFormatting('es', null);
 
   runApp(const DubssApp());
 }
