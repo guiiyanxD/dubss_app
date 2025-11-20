@@ -5,11 +5,10 @@ class Turno {
   final String horaInicio;
   final String horaFin;
   final String codigo;
-  final String estado;
+  final String estado; // reservado, atendido, cancelado, vencido
   final int duracionMinutos;
   final int? atendidoPor;
   final DateTime? atendidoEn;
-  final String? observaciones;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -24,10 +23,13 @@ class Turno {
     required this.duracionMinutos,
     this.atendidoPor,
     this.atendidoEn,
-    this.observaciones,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  // ============================================
+  // FACTORY CONSTRUCTORS
+  // ============================================
 
   factory Turno.fromJson(Map<String, dynamic> json) {
     return Turno(
@@ -38,16 +40,19 @@ class Turno {
       horaFin: json['hora_fin'] as String,
       codigo: json['codigo'] as String,
       estado: json['estado'] as String,
-      duracionMinutos: json['duracion_minutos'] as int,
+      duracionMinutos: json['duracion_minutos'] as int? ?? 15,
       atendidoPor: json['atendido_por'] as int?,
       atendidoEn: json['atendido_en'] != null
           ? DateTime.parse(json['atendido_en'])
           : null,
-      observaciones: json['observaciones'] as String?,
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
     );
   }
+
+  // ============================================
+  // TO JSON
+  // ============================================
 
   Map<String, dynamic> toJson() {
     return {
@@ -61,69 +66,64 @@ class Turno {
       'duracion_minutos': duracionMinutos,
       'atendido_por': atendidoPor,
       'atendido_en': atendidoEn?.toIso8601String(),
-      'observaciones': observaciones,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
   }
 
-  // Getters útiles
-  bool get estaReservado => estado == 'reservado';
-  bool get estaAtendido => estado == 'atendido';
-  bool get estaCancelado => estado == 'cancelado';
-  bool get estaVencido => estado == 'vencido';
+  // ============================================
+  // GETTERS
+  // ============================================
 
-  DateTime get fechaHoraInicio {
-    final parts = horaInicio.split(':');
-    return DateTime(
-      fecha.year,
-      fecha.month,
-      fecha.day,
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-    );
-  }
-
-  DateTime get fechaHoraFin {
-    final parts = horaFin.split(':');
-    return DateTime(
-      fecha.year,
-      fecha.month,
-      fecha.day,
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-    );
-  }
-
-  bool get yaVencio {
-    return DateTime.now().isAfter(fechaHoraFin);
-  }
+  bool get esReservado => estado == 'reservado';
+  bool get esAtendido => estado == 'atendido';
+  bool get esCancelado => estado == 'cancelado';
+  bool get esVencido => estado == 'vencido';
 
   bool get puedeSerCancelado {
-    return estaReservado && DateTime.now().isBefore(fechaHoraInicio);
+    if (!esReservado) return false;
+
+    final ahora = DateTime.now();
+    final fechaTurno = DateTime(
+      fecha.year,
+      fecha.month,
+      fecha.day,
+      int.parse(horaInicio.split(':')[0]),
+      int.parse(horaInicio.split(':')[1]),
+    );
+
+    // Solo se puede cancelar si falta al menos 1 hora
+    return fechaTurno.difference(ahora).inHours >= 1;
   }
 
-  String get estadoTexto {
-    switch (estado) {
-      case 'reservado':
-        return 'Reservado';
-      case 'atendido':
-        return 'Atendido';
-      case 'cancelado':
-        return 'Cancelado';
-      case 'vencido':
-        return 'Vencido';
-      default:
-        return 'Desconocido';
-    }
+  bool get esProximo {
+    final ahora = DateTime.now();
+    final fechaTurno = DateTime(
+      fecha.year,
+      fecha.month,
+      fecha.day,
+      int.parse(horaInicio.split(':')[0]),
+      int.parse(horaInicio.split(':')[1]),
+    );
+
+    return esReservado && fechaTurno.isAfter(ahora);
   }
 
-  Duration get tiempoRestante {
-    if (yaVencio) return Duration.zero;
-    return fechaHoraInicio.difference(DateTime.now());
+  String get horaCompletaTexto => '$horaInicio - $horaFin';
+
+  DateTime get fechaHoraCompleta {
+    return DateTime(
+      fecha.year,
+      fecha.month,
+      fecha.day,
+      int.parse(horaInicio.split(':')[0]),
+      int.parse(horaInicio.split(':')[1]),
+    );
   }
 
-  String get rangoHorario => '$horaInicio - $horaFin';
+  // ============================================
+  // COPY WITH
+  // ============================================
 
   Turno copyWith({
     int? id,
@@ -136,7 +136,6 @@ class Turno {
     int? duracionMinutos,
     int? atendidoPor,
     DateTime? atendidoEn,
-    String? observaciones,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -151,16 +150,23 @@ class Turno {
       duracionMinutos: duracionMinutos ?? this.duracionMinutos,
       atendidoPor: atendidoPor ?? this.atendidoPor,
       atendidoEn: atendidoEn ?? this.atendidoEn,
-      observaciones: observaciones ?? this.observaciones,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
+  // ============================================
+  // TO STRING
+  // ============================================
+
   @override
   String toString() {
-    return 'Turno(codigo: $codigo, fecha: $fecha, hora: $rangoHorario, estado: $estado)';
+    return 'Turno(codigo: $codigo, fecha: $fecha, hora: $horaInicio, estado: $estado)';
   }
+
+  // ============================================
+  // EQUALITY
+  // ============================================
 
   @override
   bool operator ==(Object other) {

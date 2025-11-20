@@ -1,26 +1,30 @@
-import 'package:intl/intl.dart';
+// services/turno_service.dart
+
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../config/api_config.dart';
-import '../models/slot_turno.dart';
 import '../models/turno.dart';
+import '../models/slot_turno.dart';
 import 'api_service.dart';
+
 
 class TurnoService {
   final ApiService _apiService = ApiService();
 
-  /// Obtiene los slots disponibles para una fecha específica
-  /// Endpoint: GET /turnos/disponibles
-  Future<Map<String, dynamic>> obtenerSlotsDisponibles(DateTime fecha) async {
+  Future<Map<String, dynamic>> obtenerTurnosDisponibles({
+    required DateTime fecha,
+  }) async {
     try {
-      // Laravel espera la fecha en formato YYYY-MM-DD
-      final String fechaFormateada = DateFormat('yyyy-MM-dd').format(fecha);
+      final fechaStr = DateFormat('yyyy-MM-dd').format(fecha);
 
       final response = await _apiService.get(
         ApiConfig.turnosDisponibles,
-        queryParameters: {
-          'fecha': fechaFormateada,
-        },
+        queryParameters: {'fecha': fechaStr},
       );
+
+      if (kDebugMode) {
+        print('📅 Turnos Disponibles Response: ${response.data}');
+      }
 
       final data = response.data;
 
@@ -28,89 +32,190 @@ class TurnoService {
         return {
           'success': false,
           'message': 'Respuesta vacía del servidor',
-          'slots': <SlotTurno>[],
+          'slots': <SlotDisponible>[],
         };
       }
 
-      // Según tu controlador Laravel:
-      // return response()->json(['success' => true, 'data' => ['slots' => [...]]])
       if (data['success'] == true) {
-        final List<dynamic> slotsData = data['data']['slots'] ?? [];
+        final List<dynamic> slotsData = data['data'] ?? [];
 
-        final List<SlotTurno> slots = slotsData
-            .map((json) => SlotTurno.fromJson(json))
+        final List<SlotDisponible> slots = slotsData
+            .map((json) => SlotDisponible.fromJson(json))
             .toList();
 
         return {
           'success': true,
           'slots': slots,
-          'message': 'Slots cargados correctamente',
-        };
-      }
-
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Error al obtener disponibilidad',
-        'slots': <SlotTurno>[],
-      };
-
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error en obtenerSlotsDisponibles: $e');
-      }
-      // ApiService ya maneja las excepciones HTTP, pero capturamos errores de parseo
-      return {
-        'success': false,
-        'message': e.toString(),
-        'slots': <SlotTurno>[],
-      };
-    }
-  }
-
-  /// Realiza la reserva de un turno
-  /// Endpoint: POST /turnos/reservar
-  Future<Map<String, dynamic>> reservarTurno({
-    required DateTime fecha,
-    required String horaInicio,
-    required String horaFin,
-  }) async {
-    try {
-      final String fechaFormateada = DateFormat('yyyy-MM-dd').format(fecha);
-
-      final response = await _apiService.post(
-        ApiConfig.reservarTurno,
-        data: {
-          'fecha': fechaFormateada,
-          'hora_inicio': horaInicio,
-          'hora_fin': horaFin,
-        },
-      );
-
-      final data = response.data;
-
-      if (data['success'] == true) {
-
-        final turno = Turno.fromJson(data['data']);
-
-        return {
-          'success': true,
-          'turno': turno,
           'message': data['message'],
         };
       }
 
       return {
         'success': false,
-        'message': data['message'] ?? 'No se pudo reservar el turno',
+        'message': data['message'] ?? 'Error al obtener turnos disponibles',
+        'slots': <SlotDisponible>[],
       };
-
     } catch (e) {
       if (kDebugMode) {
-        print('Error en reservarTurno: $e');
+        print('Error en obtenerTurnosDisponibles: $e');
       }
       return {
         'success': false,
-        'message': e.toString(),
+        'message': 'Error inesperado: $e',
+        'slots': <SlotDisponible>[],
+      };
+    }
+  }
+
+  // ============================================
+  // RESERVAR TURNO
+  // ============================================
+
+  Future<Map<String, dynamic>> reservarTurno({
+    required DateTime fecha,
+    required String horaInicio,
+    required String horaFin,
+  }) async {
+    try {
+      final fechaStr = DateFormat('yyyy-MM-dd').format(fecha);
+
+      final response = await _apiService.post(
+        ApiConfig.reservarTurno,
+        data: {
+          'fecha': fechaStr,
+          'hora_inicio': horaInicio,
+          'hora_fin': horaFin,
+        },
+      );
+
+      if (kDebugMode) {
+        print('📅 Reservar Turno Response: ${response.data}');
+      }
+
+      final data = response.data;
+
+      if (data == null) {
+        return {
+          'success': false,
+          'message': 'Respuesta vacía del servidor',
+        };
+      }
+
+      if (data['success'] == true) {
+        final turnoData = data['data'];
+
+        return {
+          'success': true,
+          'turno': Turno.fromJson(turnoData),
+          'message': data['message'] ?? 'Turno reservado exitosamente',
+        };
+      }
+
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Error al reservar turno',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error en reservarTurno: $e');
+      }
+      return {
+        'success': false,
+        'message': 'Error inesperado: $e',
+      };
+    }
+  }
+
+  // ============================================
+  // OBTENER MIS TURNOS
+  // ============================================
+
+  Future<Map<String, dynamic>> obtenerMisTurnos() async {
+    try {
+      final response = await _apiService.get(ApiConfig.misTurnos);
+
+      if (kDebugMode) {
+        print('📅 Mis Turnos Response: ${response.data}');
+      }
+
+      final data = response.data;
+
+      if (data == null) {
+        return {
+          'success': false,
+          'message': 'Respuesta vacía del servidor',
+          'turnos': <Turno>[],
+        };
+      }
+
+      if (data['success'] == true) {
+        final List<dynamic> turnosData = data['data'] ?? [];
+
+        final List<Turno> turnos = turnosData
+            .map((json) => Turno.fromJson(json))
+            .toList();
+
+        // Ordenar por fecha más reciente primero
+        turnos.sort((a, b) => b.fecha.compareTo(a.fecha));
+
+        return {
+          'success': true,
+          'turnos': turnos,
+          'message': data['message'],
+        };
+      }
+
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Error al obtener turnos',
+        'turnos': <Turno>[],
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error en obtenerMisTurnos: $e');
+      }
+      return {
+        'success': false,
+        'message': 'Error inesperado: $e',
+        'turnos': <Turno>[],
+      };
+    }
+  }
+
+  // ============================================
+  // CANCELAR TURNO
+  // ============================================
+
+  Future<Map<String, dynamic>> cancelarTurno(int turnoId) async {
+    try {
+      final response = await _apiService.put(
+        ApiConfig.cancelarTurno(turnoId),
+      );
+
+      if (kDebugMode) {
+        print('📅 Cancelar Turno Response: ${response.data}');
+      }
+
+      final data = response.data;
+
+      if (data == null) {
+        return {
+          'success': false,
+          'message': 'Respuesta vacía del servidor',
+        };
+      }
+
+      return {
+        'success': data['success'] ?? true,
+        'message': data['message'] ?? 'Turno cancelado exitosamente',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error en cancelarTurno: $e');
+      }
+      return {
+        'success': false,
+        'message': 'Error inesperado: $e',
       };
     }
   }

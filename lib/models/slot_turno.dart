@@ -1,16 +1,16 @@
-class SlotTurno {
+class SlotDisponible {
   final String horaInicio;
   final String horaFin;
   final bool disponible;
 
-  SlotTurno({
+  SlotDisponible({
     required this.horaInicio,
     required this.horaFin,
     required this.disponible,
   });
 
-  factory SlotTurno.fromJson(Map<String, dynamic> json) {
-    return SlotTurno(
+  factory SlotDisponible.fromJson(Map<String, dynamic> json) {
+    return SlotDisponible(
       horaInicio: json['hora_inicio'] as String,
       horaFin: json['hora_fin'] as String,
       disponible: json['disponible'] as bool? ?? true,
@@ -35,11 +35,11 @@ class SlotTurno {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is SlotTurno &&
+    return other is SlotDisponible &&
         other.horaInicio == horaInicio &&
         other.horaFin == horaFin;
   }
-
+  String get horaTexto => '$horaInicio - $horaFin';
   @override
   int get hashCode => horaInicio.hashCode ^ horaFin.hashCode;
 }
